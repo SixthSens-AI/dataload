@@ -79,6 +79,12 @@ if uploaded_file is not None:
         else:
             df.to_csv('data.csv', index=False)
 
+# Add a button to clean data
+clean_data_button = st.button("Clean Data")
+if clean_data_button:
+    if os.path.exists('data.csv'):
+        os.remove('data.csv')
+        
 # Load data from CSV file
 if os.path.exists('data.csv'):
     df = pd.read_csv('data.csv')
