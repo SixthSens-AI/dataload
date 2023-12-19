@@ -22,7 +22,17 @@ st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 import pandas as pd
 import json
 import re
-import os
+import redis
+import uuid
+
+
+# Connect to Redis
+hostname = 'redis-13570.c305.ap-south-1-1.ec2.cloud.redislabs.com'
+port = '13570'
+password = 'wMDKrOv3lzrwQUkJV16DXKR3Jble9V4l'
+
+redis_client = redis.Redis(host=hostname, port=port, password=password)
+
 
 def process_raw_json(raw_content):
     # Read lines from the content
@@ -73,21 +83,19 @@ if uploaded_file is not None:
         if date is not None:
             df.insert(0, 'Date', date)
 
-        # Append data to CSV file
-        if os.path.exists('data.csv'):
-            df.to_csv('data.csv', mode='a', header=False, index=False)
-        else:
-            df.to_csv('data.csv', index=False)
+        # Write DataFrame to Redis
+        for _, row in df.iterrows():
+            unique_id = str(uuid.uuid4())  # Generate a unique ID for each row
+            redis_client.hset('data', unique_id, json.dumps(row.to_dict()))
 
-# Add a button to clean data
-clean_data_button = st.button("Clean Data")
-if clean_data_button:
-    if os.path.exists('data.csv'):
-        os.remove('data.csv')
-        
-# Load data from CSV file
-if os.path.exists('data.csv'):
-    df = pd.read_csv('data.csv')
+# Add a button to clear data
+if st.button('Clear Data'):
+    redis_client.delete('data')
 
-    # Display data (last entries first)
-    st.table(df.iloc[::-1])
+# Load data from Redis
+data = redis_client.hgetall('data')
+data = [json.loads(v) for v in data.values()]
+df = pd.DataFrame(data)
+
+# Display data (last entries first)
+st.table(df.iloc[::-1])
